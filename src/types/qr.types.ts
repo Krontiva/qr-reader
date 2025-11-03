@@ -3,7 +3,18 @@ export interface QRCodeData {
   qr_text: string;
   qr_image?: string;
   created_at?: string;
+  vendor_code?: string;
+  vendor_name?: string;
+  product_name?: string;
   metadata?: Record<string, any>;
+}
+
+export interface VendorCode {
+  vendor_code: string;
+  vendor_name: string;
+  product_name?: string;
+  description?: string;
+  additional_info?: Record<string, any>;
 }
 
 export interface ScanResult {
@@ -18,4 +29,14 @@ export interface GenerateOptions {
     dark?: string;
     light?: string;
   };
+}
+
+export interface BatchGenerateResult {
+  success: number;
+  failed: number;
+  results: {
+    vendor_code: string;
+    qr_image?: string;
+    error?: string;
+  }[];
 }

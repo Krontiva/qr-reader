@@ -2,12 +2,14 @@ import { useState } from 'react';
 import './App.css';
 import { QRScanner } from './components/QRScanner';
 import { QRGenerator } from './components/QRGenerator';
+import { VendorCodeGenerator } from './components/VendorCodeGenerator';
+import { VendorCodeLookup } from './components/VendorCodeLookup';
 import type { ScanResult } from './types/qr.types';
 
-type TabType = 'scanner' | 'generator';
+type TabType = 'scanner' | 'generator' | 'vendor' | 'lookup';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<TabType>('generator');
+  const [activeTab, setActiveTab] = useState<TabType>('vendor');
   const [autoSave, setAutoSave] = useState(false);
 
   const handleScanSuccess = (result: ScanResult) => {
@@ -47,20 +49,38 @@ function App() {
       <div className="tab-container">
         <div className="tabs">
           <button
+            className={`tab ${activeTab === 'vendor' ? 'active' : ''}`}
+            onClick={() => setActiveTab('vendor')}
+          >
+            Vendor Codes
+          </button>
+          <button
+            className={`tab ${activeTab === 'lookup' ? 'active' : ''}`}
+            onClick={() => setActiveTab('lookup')}
+          >
+            Lookup
+          </button>
+          <button
             className={`tab ${activeTab === 'generator' ? 'active' : ''}`}
             onClick={() => setActiveTab('generator')}
           >
-            Generate QR Code
+            Generate QR
           </button>
           <button
             className={`tab ${activeTab === 'scanner' ? 'active' : ''}`}
             onClick={() => setActiveTab('scanner')}
           >
-            Scan QR Code
+            Scan QR
           </button>
         </div>
 
         <div className="tab-content">
+          {activeTab === 'vendor' && (
+            <VendorCodeGenerator autoSaveToXano={autoSave} />
+          )}
+          {activeTab === 'lookup' && (
+            <VendorCodeLookup />
+          )}
           {activeTab === 'generator' && (
             <QRGenerator
               onGenerate={handleGenerate}

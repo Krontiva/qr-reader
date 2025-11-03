@@ -4,6 +4,22 @@ A modern, full-featured QR code scanner and generator application built with Rea
 
 ## Features
 
+### Vendor Code QR Generator (NEW!)
+- 📦 **Bulk generation** from vendor-supplied codes
+- 📝 Single entry form for individual vendor codes
+- 📊 CSV bulk import for multiple codes at once
+- 🏷️ Track vendor name, product name, and description
+- 📥 Download all generated QR codes
+- 🔄 Batch save to Xano database
+- 📋 Live preview table with QR thumbnails
+
+### Vendor Code Lookup (NEW!)
+- 🔍 Search by vendor code or vendor name
+- 📱 Visual grid display of search results
+- 🖼️ Modal view with detailed information
+- 📥 Download individual QR codes
+- 💾 View all metadata and timestamps
+
 ### QR Code Generator
 - ✨ Generate QR codes from any text or URL
 - 🎨 Customize colors (dark and light)
@@ -81,6 +97,9 @@ Create a table named `qr_codes` with the following fields:
 | `id` | Integer | Auto-increment primary key |
 | `qr_text` | Text | The text/data encoded in the QR code |
 | `qr_image` | Text | Base64 encoded image data (optional) |
+| `vendor_code` | Text | Vendor-supplied code (optional) |
+| `vendor_name` | Text | Name of the vendor (optional) |
+| `product_name` | Text | Product name (optional) |
 | `created_at` | Timestamp | Auto-generated timestamp |
 | `metadata` | JSON | Additional metadata (optional) |
 
@@ -88,13 +107,19 @@ Create a table named `qr_codes` with the following fields:
 
 Create the following endpoints in Xano:
 
+#### Basic CRUD Operations
 1. **POST** `/qr_codes` - Create a new QR code record
 2. **GET** `/qr_codes` - Get all QR codes
 3. **GET** `/qr_codes/{id}` - Get a specific QR code by ID
 4. **PATCH** `/qr_codes/{id}` - Update a QR code
 5. **DELETE** `/qr_codes/{id}` - Delete a QR code
 
-> **Note**: Update the endpoint names in `src/services/xanoApi.ts` if you use different names.
+#### Vendor Code Operations (for new features)
+6. **GET** `/qr_codes/search?vendor_code={code}` - Search by vendor code
+7. **GET** `/qr_codes/vendor/{vendor_name}` - Get all QR codes for a vendor
+8. **POST** `/qr_codes/batch` - Batch create multiple QR codes (accepts array of QR code objects)
+
+> **Note**: Update the endpoint names in `src/services/xanoApi.ts` if you use different names. You may need to create custom functions in Xano for the search and batch endpoints.
 
 ## Usage
 
@@ -147,6 +172,48 @@ npm run preview
    - Click "Choose File" and select an image
    - The QR code will be decoded automatically
 
+### Using Vendor Code Generator
+
+**Single Entry Mode:**
+1. Click on the "Vendor Codes" tab
+2. Fill in the form:
+   - **Vendor Code** (required): The unique code from your vendor
+   - **Vendor Name** (required): Name of the vendor
+   - **Product Name** (optional): Product associated with the code
+   - **Description** (optional): Additional details
+3. Click "Add to List"
+4. Repeat for additional codes
+
+**Bulk Import Mode:**
+1. Click on the "Vendor Codes" tab
+2. Scroll to "Bulk Import Vendor Codes"
+3. Enter vendor codes in CSV format, one per line:
+   ```
+   VEN-001,ACME Corp,Widget A,Premium widget
+   VEN-002,XYZ Inc,Gadget B,Standard gadget
+   VEN-003,ABC Ltd,Tool C
+   ```
+4. Click "Import from CSV"
+
+**Generating QR Codes:**
+1. After adding vendor codes to the list, click "Generate All QR Codes"
+2. QR codes will appear as thumbnails in the table
+3. Options:
+   - **Download All**: Save all QR codes as PNG files
+   - **Save All to Xano**: Batch save to database
+   - **Clear All**: Remove all codes from the list
+
+### Looking Up Vendor Codes
+
+1. Click on the "Lookup" tab
+2. Choose search type:
+   - **Search by Vendor Code**: Find a specific code
+   - **Search by Vendor Name**: Find all codes for a vendor
+3. Enter your search term and click "Search"
+4. View results in a card grid format
+5. Click "View Details" to see full information in a modal
+6. Download individual QR codes as needed
+
 ### Auto-Save Feature
 
 Toggle the "Auto-save to Xano" option to automatically save:
@@ -161,12 +228,14 @@ When disabled, you can manually save using the "Save to Xano" button.
 qr-reader/
 ├── src/
 │   ├── components/
-│   │   ├── QRScanner.tsx      # QR code scanning component
-│   │   └── QRGenerator.tsx    # QR code generation component
+│   │   ├── QRScanner.tsx           # QR code scanning component
+│   │   ├── QRGenerator.tsx         # QR code generation component
+│   │   ├── VendorCodeGenerator.tsx # Vendor code batch generator (NEW!)
+│   │   └── VendorCodeLookup.tsx    # Vendor code lookup/search (NEW!)
 │   ├── services/
-│   │   └── xanoApi.ts         # Xano API integration
+│   │   └── xanoApi.ts              # Xano API integration
 │   ├── types/
-│   │   └── qr.types.ts        # TypeScript type definitions
+│   │   └── qr.types.ts             # TypeScript type definitions
 │   ├── App.tsx                # Main application component
 │   ├── App.css                # Application styles
 │   ├── main.tsx               # Application entry point

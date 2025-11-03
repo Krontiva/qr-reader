@@ -96,6 +96,72 @@ class XanoApiService {
       throw error;
     }
   }
+
+  /**
+   * Search for QR codes by vendor code
+   * @param vendorCode - The vendor code to search for
+   * @returns Array of matching QR code data
+   */
+  async searchByVendorCode(vendorCode: string): Promise<QRCodeData[]> {
+    try {
+      // TODO: Update endpoint name to match your Xano search endpoint
+      const response = await this.api.get(`/qr_codes/search`, {
+        params: { vendor_code: vendorCode }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error searching for vendor code:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get QR codes by vendor name
+   * @param vendorName - The vendor name to filter by
+   * @returns Array of QR codes for that vendor
+   */
+  async getByVendorName(vendorName: string): Promise<QRCodeData[]> {
+    try {
+      // TODO: Update endpoint name to match your Xano endpoint
+      const response = await this.api.get(`/qr_codes/vendor/${encodeURIComponent(vendorName)}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching QR codes by vendor:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Batch save multiple QR codes (for vendor code imports)
+   * @param qrCodes - Array of QR code data to save
+   * @returns Results of batch operation
+   */
+  async batchSaveQRCodes(qrCodes: Omit<QRCodeData, 'id' | 'created_at'>[]): Promise<QRCodeData[]> {
+    try {
+      // TODO: Update endpoint name to match your Xano batch endpoint
+      // Note: You may need to create a custom endpoint in Xano for batch operations
+      const response = await this.api.post('/qr_codes/batch', { qr_codes: qrCodes });
+      return response.data;
+    } catch (error) {
+      console.error('Error batch saving QR codes:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if a vendor code already exists
+   * @param vendorCode - The vendor code to check
+   * @returns Boolean indicating if code exists
+   */
+  async vendorCodeExists(vendorCode: string): Promise<boolean> {
+    try {
+      const results = await this.searchByVendorCode(vendorCode);
+      return results.length > 0;
+    } catch (error) {
+      console.error('Error checking vendor code existence:', error);
+      return false;
+    }
+  }
 }
 
 export const xanoApi = new XanoApiService();
