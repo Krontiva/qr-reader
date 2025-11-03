@@ -4,12 +4,14 @@ import { QRScanner } from './components/QRScanner';
 import { QRGenerator } from './components/QRGenerator';
 import { VendorCodeGenerator } from './components/VendorCodeGenerator';
 import { VendorCodeLookup } from './components/VendorCodeLookup';
+import { TicketQRGenerator } from './components/TicketQRGenerator';
+import { TicketVerificationScanner } from './components/TicketVerificationScanner';
 import type { ScanResult } from './types/qr.types';
 
-type TabType = 'scanner' | 'generator' | 'vendor' | 'lookup';
+type TabType = 'tickets' | 'verify' | 'vendor' | 'lookup' | 'scanner' | 'generator';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<TabType>('vendor');
+  const [activeTab, setActiveTab] = useState<TabType>('tickets');
   const [autoSave, setAutoSave] = useState(false);
 
   const handleScanSuccess = (result: ScanResult) => {
@@ -49,6 +51,18 @@ function App() {
       <div className="tab-container">
         <div className="tabs">
           <button
+            className={`tab ${activeTab === 'tickets' ? 'active' : ''}`}
+            onClick={() => setActiveTab('tickets')}
+          >
+            Event Tickets
+          </button>
+          <button
+            className={`tab ${activeTab === 'verify' ? 'active' : ''}`}
+            onClick={() => setActiveTab('verify')}
+          >
+            Verify Tickets
+          </button>
+          <button
             className={`tab ${activeTab === 'vendor' ? 'active' : ''}`}
             onClick={() => setActiveTab('vendor')}
           >
@@ -75,6 +89,12 @@ function App() {
         </div>
 
         <div className="tab-content">
+          {activeTab === 'tickets' && (
+            <TicketQRGenerator />
+          )}
+          {activeTab === 'verify' && (
+            <TicketVerificationScanner />
+          )}
           {activeTab === 'vendor' && (
             <VendorCodeGenerator autoSaveToXano={autoSave} />
           )}
