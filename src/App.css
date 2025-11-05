@@ -7,17 +7,31 @@
 }
 
 .app-header {
-  text-align: center;
-  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem 0;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid rgba(249, 115, 22, 0.15);
+  background: linear-gradient(180deg, rgba(249, 115, 22, 0.06) 0%, rgba(249, 115, 22, 0) 60%);
 }
 
 .app-header h1 {
-  font-size: 2.5rem;
-  margin-bottom: 0.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-size: 1.75rem;
+  margin: 0;
+  color: #f97316;
+  letter-spacing: 0.04em;
+}
+
+.brand-logo {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+}
+
+.brand-title {
+  color: #f97316;
 }
 
 .subtitle {
@@ -81,25 +95,29 @@
 
 .tab {
   flex: 1;
-  padding: 1rem 2rem;
+  padding: 0.75rem 1rem;
   background: transparent;
   border: none;
   cursor: pointer;
   font-size: 1rem;
-  font-weight: 500;
-  color: #666;
+  font-weight: 600;
+  color: #555;
   transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .tab:hover {
-  background: #e8e8e8;
-  color: #333;
+  background: #ffe8d8;
+  color: #f97316;
 }
 
 .tab.active {
   background: white;
-  color: #667eea;
-  border-bottom: 3px solid #667eea;
+  color: #f97316;
+  border-bottom: 3px solid #f97316;
 }
 
 .tab-content {
@@ -127,9 +145,9 @@
 
 .mode-selector button {
   padding: 0.5rem 1.5rem;
-  border: 2px solid #667eea;
+  border: 2px solid #f97316;
   background: white;
-  color: #667eea;
+  color: #f97316;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
@@ -137,13 +155,13 @@
 }
 
 .mode-selector button.active {
-  background: #667eea;
+  background: #f97316;
   color: white;
 }
 
 .mode-selector button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 8px rgba(249, 115, 22, 0.3);
 }
 
 .camera-controls,
@@ -183,13 +201,13 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
   color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 6px 12px rgba(249, 115, 22, 0.4);
 }
 
 .btn-primary:disabled {
@@ -320,7 +338,7 @@
 
 .text-input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #f97316;
 }
 
 .options-grid {
@@ -343,7 +361,7 @@
 .number-input:focus,
 .color-input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #f97316;
 }
 
 .color-input {
@@ -446,7 +464,7 @@
   padding: 2px 6px;
   border-radius: 4px;
   font-family: 'Courier New', monospace;
-  color: #667eea;
+  color: #f97316;
 }
 
 .bulk-textarea {
@@ -597,8 +615,8 @@
 }
 
 .result-card:hover {
-  border-color: #667eea;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+  border-color: #f97316;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2);
   transform: translateY(-2px);
 }
 
@@ -783,7 +801,11 @@
   }
 
   .app-header h1 {
-    font-size: 2rem;
+    font-size: 1.25rem;
+  }
+
+  .brand-logo {
+    height: 28px;
   }
 
   .tab {
@@ -964,17 +986,17 @@
 /* Ticket Details Card */
 .ticket-details-card {
   background: white;
-  border: 2px solid #667eea;
+  border: 2px solid #f97316;
   border-radius: 12px;
   padding: 2rem;
   margin-top: 2rem;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.15);
 }
 
 .ticket-details-card h3 {
   margin-top: 0;
-  color: #667eea;
-  border-bottom: 2px solid #667eea;
+  color: #f97316;
+  border-bottom: 2px solid #f97316;
   padding-bottom: 0.5rem;
 }
 

@@ -4,7 +4,7 @@ import type { TicketOrder } from '../types/ticket.types';
 import { delikaApi } from '../services/delikaApi';
 
 export const TicketVerificationScanner: React.FC = () => {
-  const [isScanning, setIsScanning] = useState(false);
+  const [isScanning, setIsScanning] = useState(true);
   const [ticket, setTicket] = useState<TicketOrder | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
