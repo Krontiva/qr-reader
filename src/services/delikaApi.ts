@@ -5,6 +5,7 @@ import type { DelikaEvent, TicketOrder, UpdateTicketPayload } from '../types/tic
 const DELIKA_BASE_URL = import.meta.env.VITE_DELIKA_API_BASE_URL || 'https://api-server.krontiva.africa/api:uEBBwbSs';
 const EVENTS_ENDPOINT = import.meta.env.VITE_DELIKA_EVENTS_ENDPOINT || '/delika_events_table';
 const TICKETS_ENDPOINT = import.meta.env.VITE_DELIKA_TICKETS_ENDPOINT || '/delika_ticket_orders_table';
+const ADD_TICKET_CODE_ENDPOINT = import.meta.env.VITE_DELIKA_ADD_TICKET_CODE_ENDPOINT || '/add/ticket/code';
 
 class DelikaApiService {
   private api: AxiosInstance;
@@ -198,6 +199,51 @@ class DelikaApiService {
       return tickets.filter(ticket => !ticket.verified);
     } catch (error) {
       console.error('Error fetching unverified paid tickets:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get events filtered by type (e.g., "ticket")
+   * @param type - The event type to filter by
+   * @returns Array of filtered events
+   */
+  async getEventsByType(type: string): Promise<DelikaEvent[]> {
+    try {
+      const events = await this.getAllEvents();
+      return events.filter(event => event.type === type);
+    } catch (error) {
+      console.error(`Error fetching events by type ${type}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add vendor code with QR code image to Delika
+   * @param code - The vendor code
+   * @param qrCodeFile - The QR code image as a File/Blob
+   * @param eventId - The event ID (delika_events_table_id)
+   * @param productName - Optional product name (item name from inventory)
+   * @returns The created record
+   */
+  async addTicketCode(code: string, qrCodeFile: File | Blob, eventId: string, productName?: string): Promise<any> {
+    try {
+      const formData = new FormData();
+      formData.append('code', code);
+      formData.append('photo', qrCodeFile, 'qr-code.png');
+      formData.append('delika_events_table_id', eventId);
+      if (productName) {
+        formData.append('productName', productName);
+      }
+
+      const response = await this.api.post(ADD_TICKET_CODE_ENDPOINT, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error adding ticket code:', error);
       throw error;
     }
   }

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import QRCode from 'qrcode';
 import type { VendorCode, GenerateOptions, BatchGenerateResult } from '../types/qr.types';
-import { xanoApi } from '../services/xanoApi';
+import { delikaApi } from '../services/delikaApi';
+import type { DelikaEvent } from '../types/ticket.types';
 
 interface VendorCodeGeneratorProps {
   autoSaveToXano?: boolean;
@@ -11,8 +12,10 @@ export const VendorCodeGenerator: React.FC<VendorCodeGeneratorProps> = ({
   autoSaveToXano = false,
 }) => {
   const [vendorCodes, setVendorCodes] = useState<VendorCode[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<DelikaEvent | null>(null);
+  const [events, setEvents] = useState<DelikaEvent[]>([]);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [currentVendorCode, setCurrentVendorCode] = useState('');
-  const [currentVendorName, setCurrentVendorName] = useState('');
   const [currentProductName, setCurrentProductName] = useState('');
   const [currentDescription, setCurrentDescription] = useState('');
   const [bulkInput, setBulkInput] = useState('');
@@ -33,22 +36,57 @@ export const VendorCodeGenerator: React.FC<VendorCodeGeneratorProps> = ({
     },
   });
 
+  // Fetch events on component mount
+  useEffect(() => {
+    loadEvents();
+  }, []);
+
+  const loadEvents = async () => {
+    setIsLoadingEvents(true);
+    try {
+      const ticketEvents = await delikaApi.getEventsByType('ticket');
+      setEvents(ticketEvents);
+    } catch (err) {
+      setError('Failed to load events. Please try again.');
+      console.error('Error loading events:', err);
+    } finally {
+      setIsLoadingEvents(false);
+    }
+  };
+
+  // Helper function to convert base64 data URL to File
+  const dataURLtoFile = (dataurl: string, filename: string): File => {
+    const arr = dataurl.split(',');
+    const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], filename, { type: mime });
+  };
+
   const addVendorCode = () => {
-    if (!currentVendorCode.trim() || !currentVendorName.trim()) {
-      setError('Vendor code and vendor name are required');
+    if (!selectedEvent) {
+      setError('Please select a vendor/event first');
+      return;
+    }
+
+    if (!currentVendorCode.trim()) {
+      setError('Vendor code is required');
       return;
     }
 
     const newCode: VendorCode = {
       vendor_code: currentVendorCode.trim(),
-      vendor_name: currentVendorName.trim(),
-      product_name: currentProductName.trim() || undefined,
+      vendor_name: selectedEvent.vendor_name,
+      product_name: currentProductName || undefined,
       description: currentDescription.trim() || undefined,
     };
 
     setVendorCodes([...vendorCodes, newCode]);
     setCurrentVendorCode('');
-    setCurrentVendorName('');
     setCurrentProductName('');
     setCurrentDescription('');
     setError('');
@@ -60,6 +98,11 @@ export const VendorCodeGenerator: React.FC<VendorCodeGeneratorProps> = ({
   };
 
   const processBulkInput = () => {
+    if (!selectedEvent) {
+      setError('Please select a vendor/event first');
+      return;
+    }
+
     if (!bulkInput.trim()) {
       setError('Please enter vendor codes in the bulk input area');
       return;
@@ -69,14 +112,12 @@ export const VendorCodeGenerator: React.FC<VendorCodeGeneratorProps> = ({
     const newCodes: VendorCode[] = [];
 
     for (const line of lines) {
-      // Expected format: VENDOR_CODE,VENDOR_NAME,PRODUCT_NAME,DESCRIPTION
-      const parts = line.split(',').map(p => p.trim());
-      if (parts.length >= 2) {
+      // Expected format: VENDOR_CODE (just the code, vendor comes from selected event)
+      const vendorCode = line.trim();
+      if (vendorCode) {
         newCodes.push({
-          vendor_code: parts[0],
-          vendor_name: parts[1],
-          product_name: parts[2] || undefined,
-          description: parts[3] || undefined,
+          vendor_code: vendorCode,
+          vendor_name: selectedEvent.vendor_name,
         });
       }
     }
@@ -136,8 +177,8 @@ export const VendorCodeGenerator: React.FC<VendorCodeGeneratorProps> = ({
       setSuccess(`Generated ${results.success} QR codes successfully`);
 
       // Auto-save if enabled
-      if (autoSaveToXano) {
-        await saveAllToXano(vendorCode => newGeneratedQRs.get(vendorCode.vendor_code));
+      if (autoSaveToXano && selectedEvent) {
+        await saveAllToDelika(vendorCode => newGeneratedQRs.get(vendorCode.vendor_code));
       }
     }
 
@@ -146,35 +187,52 @@ export const VendorCodeGenerator: React.FC<VendorCodeGeneratorProps> = ({
     }
   };
 
-  const saveAllToXano = async (getQRImage?: (code: VendorCode) => string | undefined) => {
+  const saveAllToDelika = async (getQRImage?: (code: VendorCode) => string | undefined) => {
     if (vendorCodes.length === 0) {
       setError('No vendor codes to save');
       return;
     }
 
-    setIsSaving(true);
-    try {
-      const qrCodeData = vendorCodes.map(code => ({
-        qr_text: code.vendor_code,
-        qr_image: getQRImage ? getQRImage(code) : generatedQRs.get(code.vendor_code),
-        vendor_code: code.vendor_code,
-        vendor_name: code.vendor_name,
-        product_name: code.product_name,
-        metadata: {
-          description: code.description,
-          additional_info: code.additional_info,
-          generated_at: new Date().toISOString(),
-          source: 'vendor_batch',
-        },
-      }));
+    if (!selectedEvent) {
+      setError('Please select a vendor/event first');
+      return;
+    }
 
-      await xanoApi.batchSaveQRCodes(qrCodeData);
-      setSuccess(`Successfully saved ${vendorCodes.length} QR codes to Xano`);
-    } catch (err) {
-      console.error('Failed to save vendor codes to Xano:', err);
-      setError('Failed to save to database. Try saving individually.');
-    } finally {
-      setIsSaving(false);
+    setIsSaving(true);
+    setError('');
+    setSuccess('');
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const code of vendorCodes) {
+      try {
+        const qrImageDataUrl = getQRImage ? getQRImage(code) : generatedQRs.get(code.vendor_code);
+        
+        if (!qrImageDataUrl) {
+          failCount++;
+          continue;
+        }
+
+        // Convert base64 data URL to File
+        const qrFile = dataURLtoFile(qrImageDataUrl, `qr-${code.vendor_code}.png`);
+
+        // Post to Delika API with productName
+        await delikaApi.addTicketCode(code.vendor_code, qrFile, selectedEvent.id, code.product_name);
+        successCount++;
+      } catch (err) {
+        console.error(`Failed to save vendor code ${code.vendor_code}:`, err);
+        failCount++;
+      }
+    }
+
+    setIsSaving(false);
+
+    if (successCount > 0) {
+      setSuccess(`Successfully saved ${successCount} vendor code(s) to Delika`);
+    }
+    if (failCount > 0) {
+      setError(`Failed to save ${failCount} vendor code(s). Please try again.`);
     }
   };
 
@@ -202,6 +260,47 @@ export const VendorCodeGenerator: React.FC<VendorCodeGeneratorProps> = ({
       <h2>Vendor Code QR Generator</h2>
       <p className="subtitle-text">Generate QR codes for vendor-supplied codes in bulk</p>
 
+      {/* Vendor/Event Selection */}
+      <div className="vendor-form">
+        <h3>Select Vendor</h3>
+        <div className="form-group">
+          <label htmlFor="vendor-select">Vendor/Event *</label>
+          {isLoadingEvents ? (
+            <p>Loading events...</p>
+          ) : (
+            <select
+              id="vendor-select"
+              value={selectedEvent?.id || ''}
+              onChange={(e) => {
+                const event = events.find(ev => ev.id === e.target.value);
+                setSelectedEvent(event || null);
+                // Clear vendor codes and form fields when changing selection
+                if (event?.id !== selectedEvent?.id) {
+                  setVendorCodes([]);
+                  setGeneratedQRs(new Map());
+                  setCurrentVendorCode('');
+                  setCurrentProductName('');
+                  setCurrentDescription('');
+                }
+              }}
+              className="text-input"
+            >
+              <option value="">-- Select a vendor/event --</option>
+              {events.map((event) => (
+                <option key={event.id} value={event.id}>
+                  {event.event_name} - {event.vendor_name}
+                </option>
+              ))}
+            </select>
+          )}
+          {selectedEvent && (
+            <p className="help-text">
+              Selected: <strong>{selectedEvent.event_name}</strong> by <strong>{selectedEvent.vendor_name}</strong>
+            </p>
+          )}
+        </div>
+      </div>
+
       {/* Single Entry Form */}
       <div className="vendor-form">
         <h3>Add Single Vendor Code</h3>
@@ -215,31 +314,37 @@ export const VendorCodeGenerator: React.FC<VendorCodeGeneratorProps> = ({
               onChange={(e) => setCurrentVendorCode(e.target.value)}
               placeholder="e.g., VEN-12345"
               className="text-input"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="vendor-name">Vendor Name *</label>
-            <input
-              id="vendor-name"
-              type="text"
-              value={currentVendorName}
-              onChange={(e) => setCurrentVendorName(e.target.value)}
-              placeholder="e.g., ACME Corp"
-              className="text-input"
+              disabled={!selectedEvent}
             />
           </div>
 
           <div className="form-group">
             <label htmlFor="product-name">Product Name</label>
-            <input
-              id="product-name"
-              type="text"
-              value={currentProductName}
-              onChange={(e) => setCurrentProductName(e.target.value)}
-              placeholder="e.g., Widget Pro"
-              className="text-input"
-            />
+            {selectedEvent && selectedEvent.inventory && selectedEvent.inventory.length > 0 ? (
+              <select
+                id="product-name"
+                value={currentProductName}
+                onChange={(e) => setCurrentProductName(e.target.value)}
+                className="text-input"
+              >
+                <option value="">-- Select a product --</option>
+                {selectedEvent.inventory.map((item, index) => (
+                  <option key={index} value={item.itemName}>
+                    {item.itemName} {item.description ? `- ${item.description}` : ''} (GH₵{item.itemPrice})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                id="product-name"
+                type="text"
+                value={currentProductName}
+                onChange={(e) => setCurrentProductName(e.target.value)}
+                placeholder="No inventory items available"
+                className="text-input"
+                disabled
+              />
+            )}
           </div>
 
           <div className="form-group">
@@ -255,7 +360,11 @@ export const VendorCodeGenerator: React.FC<VendorCodeGeneratorProps> = ({
           </div>
         </div>
 
-        <button onClick={addVendorCode} className="btn-primary">
+        <button 
+          onClick={addVendorCode} 
+          className="btn-primary"
+          disabled={!selectedEvent}
+        >
           Add to List
         </button>
       </div>
@@ -264,19 +373,24 @@ export const VendorCodeGenerator: React.FC<VendorCodeGeneratorProps> = ({
       <div className="bulk-form">
         <h3>Bulk Import Vendor Codes</h3>
         <p className="help-text">
-          Enter one vendor code per line in CSV format:
+          Enter one vendor code per line. The selected vendor/event will be used for all codes:
           <br />
-          <code>VENDOR_CODE,VENDOR_NAME,PRODUCT_NAME,DESCRIPTION</code>
+          <code>VENDOR_CODE (one per line)</code>
         </p>
         <textarea
           value={bulkInput}
           onChange={(e) => setBulkInput(e.target.value)}
-          placeholder="VEN-001,ACME Corp,Widget A,Premium widget&#10;VEN-002,XYZ Inc,Gadget B,Standard gadget&#10;VEN-003,ABC Ltd,Tool C"
+          placeholder="VEN-001&#10;VEN-002&#10;VEN-003"
           rows={6}
           className="text-input bulk-textarea"
+          disabled={!selectedEvent}
         />
-        <button onClick={processBulkInput} className="btn-secondary">
-          Import from CSV
+        <button 
+          onClick={processBulkInput} 
+          className="btn-secondary"
+          disabled={!selectedEvent}
+        >
+          Import Codes
         </button>
       </div>
 
@@ -333,7 +447,7 @@ export const VendorCodeGenerator: React.FC<VendorCodeGeneratorProps> = ({
               disabled={isGenerating}
               className="btn-primary"
             >
-              {isGenerating ? 'Generating...' : `Generate All QR Codes (${vendorCodes.length})`}
+              {isGenerating ? 'Generating...' : `Generate  QR Codes (${vendorCodes.length})`}
             </button>
 
             {generatedQRs.size > 0 && (
@@ -343,11 +457,11 @@ export const VendorCodeGenerator: React.FC<VendorCodeGeneratorProps> = ({
                 </button>
                 {!autoSaveToXano && (
                   <button
-                    onClick={() => saveAllToXano()}
-                    disabled={isSaving}
+                    onClick={() => saveAllToDelika()}
+                    disabled={isSaving || !selectedEvent}
                     className="btn-save"
                   >
-                    {isSaving ? 'Saving...' : 'Save All to Xano'}
+                    {isSaving ? 'Saving...' : 'Save All to Delika'}
                   </button>
                 )}
               </>
@@ -374,7 +488,7 @@ export const VendorCodeGenerator: React.FC<VendorCodeGeneratorProps> = ({
       )}
 
       {isSaving && autoSaveToXano && (
-        <p className="saving-indicator">Saving to Xano...</p>
+        <p className="saving-indicator">Saving to Delika...</p>
       )}
 
       {/* Batch Results */}
