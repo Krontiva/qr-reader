@@ -447,7 +447,7 @@ export const VendorCodeGenerator: React.FC<VendorCodeGeneratorProps> = ({
               disabled={isGenerating}
               className="btn-primary"
             >
-              {isGenerating ? 'Generating...' : `Generate All QR Codes (${vendorCodes.length})`}
+              {isGenerating ? 'Generating...' : `Generate  QR Codes (${vendorCodes.length})`}
             </button>
 
             {generatedQRs.size > 0 && (
