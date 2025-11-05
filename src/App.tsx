@@ -4,16 +4,15 @@ import { QRScanner } from './components/QRScanner';
 import { QRGenerator } from './components/QRGenerator';
 import { VendorCodeGenerator } from './components/VendorCodeGenerator';
 import { VendorCodeLookup } from './components/VendorCodeLookup';
-import { TicketQRGenerator } from './components/TicketQRGenerator';
 import { TicketVerificationScanner } from './components/TicketVerificationScanner';
 import type { ScanResult } from './types/qr.types';
-import { TicketsIcon, VerifyIcon, VendorIcon, LookupIcon, GenerateIcon, ScannerIcon } from './assets/icons';
+import { VerifyIcon, VendorIcon, LookupIcon, GenerateIcon, ScannerIcon } from './assets/icons';
 
 type TabType = 'tickets' | 'verify' | 'vendor' | 'lookup' | 'scanner' | 'generator';
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabType>('verify');
-  const [autoSave, setAutoSave] = useState(false);
+  const [autoSave] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
