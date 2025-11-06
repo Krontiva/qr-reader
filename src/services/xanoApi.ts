@@ -2,9 +2,21 @@ import axios, { type AxiosInstance } from 'axios';
 import type { QRCodeData } from '../types/qr.types';
 
 // Configuration for Xano API
-// TODO: Update these values with your Xano instance details
-const XANO_BASE_URL = import.meta.env.VITE_XANO_BASE_URL || 'https://your-instance.xano.io/api:your-api-group';
-const XANO_API_KEY = import.meta.env.VITE_XANO_API_KEY || ''; // Optional: if your Xano API requires authentication
+const XANO_BASE_URL = import.meta.env.VITE_XANO_BASE_URL;
+
+/**
+ * Get Xano Auth Token from environment variables
+ * This is the static service token used for backend service operations
+ * @returns The auth token or empty string if not defined
+ */
+const getAuthToken = (): string => {
+  const token = import.meta.env.VITE_XANO_API_TOKEN;
+  if (!token) {
+    console.warn('VITE_XANO_API_TOKEN is not defined in environment variables');
+    return ''; // Return empty string instead of throwing error
+  }
+  return token;
+};
 
 class XanoApiService {
   private api: AxiosInstance;
@@ -14,7 +26,7 @@ class XanoApiService {
       baseURL: XANO_BASE_URL,
       headers: {
         'Content-Type': 'application/json',
-        ...(XANO_API_KEY && { 'Authorization': `Bearer ${XANO_API_KEY}` }),
+        'Authorization': getAuthToken(), // Static service token for all API operations
       },
     });
   }

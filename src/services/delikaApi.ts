@@ -2,10 +2,24 @@ import axios, { type AxiosInstance } from 'axios';
 import type { DelikaEvent, TicketOrder, UpdateTicketPayload } from '../types/ticket.types';
 
 // Configuration for Delika API
-const DELIKA_BASE_URL = import.meta.env.VITE_DELIKA_API_BASE_URL || 'https://api-server.krontiva.africa/api:uEBBwbSs';
-const EVENTS_ENDPOINT = import.meta.env.VITE_DELIKA_EVENTS_ENDPOINT || '/delika_events_table';
-const TICKETS_ENDPOINT = import.meta.env.VITE_DELIKA_TICKETS_ENDPOINT || '/delika_ticket_orders_table';
-const ADD_TICKET_CODE_ENDPOINT = import.meta.env.VITE_DELIKA_ADD_TICKET_CODE_ENDPOINT || '/add/ticket/code';
+const DELIKA_BASE_URL = import.meta.env.VITE_DELIKA_API_BASE_URL;
+const EVENTS_ENDPOINT = import.meta.env.VITE_DELIKA_EVENTS_ENDPOINT;
+const TICKETS_ENDPOINT = import.meta.env.VITE_DELIKA_TICKETS_ENDPOINT;
+const ADD_TICKET_CODE_ENDPOINT = import.meta.env.VITE_DELIKA_ADD_TICKET_CODE_ENDPOINT;
+
+/**
+ * Get Xano Auth Token from environment variables
+ * This is the static service token used for backend service operations
+ * @returns The auth token or empty string if not defined
+ */
+const getAuthToken = (): string => {
+  const token = import.meta.env.VITE_XANO_API_TOKEN;
+  if (!token) {
+    console.warn('VITE_XANO_API_TOKEN is not defined in environment variables');
+    return ''; // Return empty string instead of throwing error
+  }
+  return token;
+};
 
 class DelikaApiService {
   private api: AxiosInstance;
@@ -15,6 +29,7 @@ class DelikaApiService {
       baseURL: DELIKA_BASE_URL,
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': getAuthToken(), // Static service token for all API operations
       },
     });
   }
@@ -239,6 +254,7 @@ class DelikaApiService {
       const response = await this.api.post(ADD_TICKET_CODE_ENDPOINT, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
+          'Authorization': getAuthToken(), // Ensure auth token is included for FormData requests
         },
       });
       return response.data;
