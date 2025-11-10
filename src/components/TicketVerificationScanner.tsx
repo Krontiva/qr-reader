@@ -1,17 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
-import { Html5Qrcode, Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import type { TicketOrder } from '../types/ticket.types';
 import { delikaApi } from '../services/delikaApi';
 
 export const TicketVerificationScanner: React.FC = () => {
-  const [isScanning, setIsScanning] = useState(true);
+  const [isScanning, setIsScanning] = useState(false);
   const [ticket, setTicket] = useState<TicketOrder | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const [torchOn, setTorchOn] = useState(false);
   const qrCodeRef = useRef<Html5Qrcode | null>(null);
+  const videoTrackRef = useRef<MediaStreamTrack | null>(null);
   const [scanMode, setScanMode] = useState<'camera' | 'file'>('camera');
+  const scannerId = 'ticket-qr-reader';
+
+  // Auto-start camera on initial load if camera mode is selected
+  useEffect(() => {
+    if (scanMode === 'camera' && !isScanning) {
+      setIsScanning(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (isScanning && scanMode === 'camera') {
@@ -23,57 +33,171 @@ export const TicketVerificationScanner: React.FC = () => {
     };
   }, [isScanning, scanMode]);
 
-  const startCameraScanner = () => {
-    const scannerId = 'ticket-qr-reader';
+  const startCameraScanner = async () => {
+    try {
+      // Stop any existing scanner first
+      await stopScanner();
 
-    scannerRef.current = new Html5QrcodeScanner(
-      scannerId,
-      {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0,
-        showTorchButtonIfSupported: true,
-        showZoomSliderIfSupported: true,
-      },
-      false
-    );
+      const html5QrCode = new Html5Qrcode(scannerId);
+      qrCodeRef.current = html5QrCode;
 
-    scannerRef.current.render(
-      async (decodedText) => {
-        await handleScanSuccess(decodedText);
-      },
-      () => {
-        // Ignore scan errors (when no QR code detected)
+      // Try to get cameras first (for desktop)
+      let cameraId: string | null = null;
+      let useFacingMode = false;
+
+      try {
+        const devices = await Html5Qrcode.getCameras();
+        
+        if (devices && devices.length > 0) {
+          // Try to find back camera (environment facing)
+          const backCamera = devices.find(device => 
+            device.label.toLowerCase().includes('back') || 
+            device.label.toLowerCase().includes('rear') ||
+            device.label.toLowerCase().includes('environment')
+          );
+
+          if (backCamera) {
+            cameraId = backCamera.id;
+          } else if (devices.length > 0) {
+            // If no back camera found, use the last camera (usually back camera on mobile)
+            cameraId = devices[devices.length - 1].id;
+          }
+        }
+      } catch (cameraEnumError) {
+        // Camera enumeration failed (common on mobile) - use facingMode instead
+        console.log('Camera enumeration failed, using facingMode:', cameraEnumError);
+        useFacingMode = true;
       }
-    );
-  };
 
-  const stopScanner = () => {
-    if (scannerRef.current) {
-      scannerRef.current.clear().catch((error) => {
-        console.error('Error clearing scanner:', error);
-      });
-      scannerRef.current = null;
-    }
+      // Start scanning with back camera
+      if (cameraId && !useFacingMode) {
+        // Use specific camera ID (desktop)
+        await html5QrCode.start(
+          cameraId,
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+          },
+          async (decodedText) => {
+            // Don't stop scanning - keep it running
+            await handleScanSuccess(decodedText);
+          },
+          (_errorMessage) => {
+            // Ignore scan errors (when no QR code detected)
+            // This is normal and happens continuously when no QR code is in view
+          }
+        );
+      } else {
+        // Use facingMode for mobile devices (more reliable)
+        await html5QrCode.start(
+          { facingMode: 'environment' }, // Back camera
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+          },
+          async (decodedText) => {
+            // Don't stop scanning - keep it running
+            await handleScanSuccess(decodedText);
+          },
+          (_errorMessage) => {
+            // Ignore scan errors (when no QR code detected)
+            // This is normal and happens continuously when no QR code is in view
+          }
+        );
+      }
 
-    if (qrCodeRef.current) {
-      qrCodeRef.current.stop().catch((error) => {
-        console.error('Error stopping QR code scanner:', error);
-      });
+      // Get video track for torch control (wait a bit for video element to be ready)
+      setTimeout(() => {
+        const videoElement = document.querySelector(`#${scannerId} video`) as HTMLVideoElement;
+        if (videoElement && videoElement.srcObject) {
+          const stream = videoElement.srcObject as MediaStream;
+          const videoTrack = stream.getVideoTracks()[0];
+          if (videoTrack) {
+            videoTrackRef.current = videoTrack;
+          }
+        }
+      }, 500);
+    } catch (err: any) {
+      console.error('Error starting camera scanner:', err);
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to start camera. ';
+      if (err.name === 'NotAllowedError' || err.message?.includes('permission')) {
+        errorMessage += 'Please allow camera permissions and try again.';
+      } else if (err.name === 'NotFoundError' || err.message?.includes('camera')) {
+        errorMessage += 'No camera found on your device.';
+      } else if (err.message) {
+        errorMessage += err.message;
+      } else {
+        errorMessage += 'Please check permissions and try again.';
+      }
+      
+      setError(errorMessage);
+      setIsScanning(false);
       qrCodeRef.current = null;
     }
   };
 
-  const handleStartScanning = () => {
-    setIsScanning(true);
-    setError('');
-    setSuccess('');
-    setTicket(null);
+  const stopScanner = async () => {
+    // Turn off torch if on
+    if (torchOn && videoTrackRef.current) {
+      try {
+        await videoTrackRef.current.applyConstraints({ 
+          advanced: [{ torch: false } as MediaTrackConstraints] 
+        });
+        setTorchOn(false);
+      } catch (err) {
+        console.log('Error turning off torch:', err);
+      }
+    }
+    videoTrackRef.current = null;
+
+    if (qrCodeRef.current) {
+      try {
+        await qrCodeRef.current.stop();
+        await qrCodeRef.current.clear();
+      } catch (error) {
+        // Ignore errors when stopping (might already be stopped)
+        console.log('Scanner already stopped or error stopping:', error);
+      }
+      qrCodeRef.current = null;
+    }
   };
 
-  const handleStopScanning = () => {
+  const toggleTorch = async () => {
+    if (!videoTrackRef.current) {
+      // Try to get video track if not already stored
+      const videoElement = document.querySelector(`#${scannerId} video`) as HTMLVideoElement;
+      if (videoElement && videoElement.srcObject) {
+        const stream = videoElement.srcObject as MediaStream;
+        const videoTrack = stream.getVideoTracks()[0];
+        if (videoTrack) {
+          videoTrackRef.current = videoTrack;
+        } else {
+          return;
+        }
+      } else {
+        return;
+      }
+    }
+
+    try {
+      const newTorchState = !torchOn;
+      await videoTrackRef.current.applyConstraints({
+        advanced: [{ torch: newTorchState } as MediaTrackConstraints],
+      });
+      setTorchOn(newTorchState);
+    } catch (err) {
+      console.log('Torch not supported or error toggling:', err);
+      // Torch might not be supported on this device
+    }
+  };
+
+  const handleStopScanning = async () => {
     setIsScanning(false);
-    stopScanner();
+    await stopScanner();
   };
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -176,10 +300,14 @@ export const TicketVerificationScanner: React.FC = () => {
         <div className="mode-selector">
           <button
             className={scanMode === 'camera' ? 'active' : ''}
-            onClick={() => {
-              setScanMode('camera');
-              if (isScanning) {
-                handleStopScanning();
+            onClick={async () => {
+              if (scanMode !== 'camera') {
+                if (isScanning) {
+                  await handleStopScanning();
+                }
+                setScanMode('camera');
+                // Auto-start camera when switching to camera mode
+                setIsScanning(true);
               }
             }}
           >
@@ -187,10 +315,12 @@ export const TicketVerificationScanner: React.FC = () => {
           </button>
           <button
             className={scanMode === 'file' ? 'active' : ''}
-            onClick={() => {
-              setScanMode('file');
-              if (isScanning) {
-                handleStopScanning();
+            onClick={async () => {
+              if (scanMode !== 'file') {
+                if (isScanning) {
+                  await handleStopScanning();
+                }
+                setScanMode('file');
               }
             }}
           >
@@ -198,17 +328,18 @@ export const TicketVerificationScanner: React.FC = () => {
           </button>
         </div>
 
-        {scanMode === 'camera' && (
+        {scanMode === 'camera' && isScanning && (
           <div className="camera-controls">
-            {!isScanning ? (
-              <button onClick={handleStartScanning} className="btn-primary">
-                Start Camera Scanner
-              </button>
-            ) : (
-              <button onClick={handleStopScanning} className="btn-secondary">
-                Stop Scanner
-              </button>
-            )}
+            <button
+              onClick={toggleTorch}
+              className="btn-torch"
+              title={torchOn ? 'Turn off torch' : 'Turn on torch'}
+            >
+              {torchOn ? '🔦 Torch On' : '💡 Torch Off'}
+            </button>
+            <button onClick={handleStopScanning} className="btn-secondary">
+              Stop Scanner
+            </button>
           </div>
         )}
 
