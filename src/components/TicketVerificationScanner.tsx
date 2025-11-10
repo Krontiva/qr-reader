@@ -3,6 +3,29 @@ import { Html5Qrcode } from 'html5-qrcode';
 import type { TicketOrder } from '../types/ticket.types';
 import { delikaApi } from '../services/delikaApi';
 
+// Helper function to clear all cache
+const clearAllCache = () => {
+  try {
+    // Clear localStorage
+    localStorage.clear();
+    // Clear sessionStorage
+    sessionStorage.clear();
+    // Clear IndexedDB if needed (optional)
+    if ('indexedDB' in window) {
+      indexedDB.databases().then(databases => {
+        databases.forEach(db => {
+          if (db.name) {
+            indexedDB.deleteDatabase(db.name);
+          }
+        });
+      });
+    }
+    console.log('Cache cleared successfully');
+  } catch (err) {
+    console.error('Error clearing cache:', err);
+  }
+};
+
 export const TicketVerificationScanner: React.FC = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [ticket, setTicket] = useState<TicketOrder | null>(null);
@@ -14,6 +37,11 @@ export const TicketVerificationScanner: React.FC = () => {
   const videoTrackRef = useRef<MediaStreamTrack | null>(null);
   const [scanMode, setScanMode] = useState<'camera' | 'file'>('camera');
   const scannerId = 'ticket-qr-reader';
+
+  // Clear cache on component mount (refresh)
+  useEffect(() => {
+    clearAllCache();
+  }, []);
 
   // Auto-start camera on initial load if camera mode is selected
   useEffect(() => {
@@ -216,8 +244,17 @@ export const TicketVerificationScanner: React.FC = () => {
   };
 
   const handleScanSuccess = async (decodedText: string) => {
+    // Stop scanning immediately when QR code is detected
+    if (isScanning) {
+      await stopScanner();
+      setIsScanning(false);
+    }
+
     setError('');
     setSuccess('');
+
+    // Clear cache before looking up ticket
+    clearAllCache();
 
     // Try to find the ticket by order number or ID
     try {
@@ -261,6 +298,9 @@ export const TicketVerificationScanner: React.FC = () => {
       return;
     }
 
+    // Clear cache when verifying ticket
+    clearAllCache();
+
     setIsVerifying(true);
     setError('');
     setSuccess('');
@@ -286,9 +326,16 @@ export const TicketVerificationScanner: React.FC = () => {
   };
 
   const clearResult = () => {
+    // Clear cache when clearing result
+    clearAllCache();
     setTicket(null);
     setError('');
     setSuccess('');
+    
+    // Restart scanning if in camera mode
+    if (scanMode === 'camera' && !isScanning) {
+      setIsScanning(true);
+    }
   };
 
   return (
@@ -328,7 +375,7 @@ export const TicketVerificationScanner: React.FC = () => {
           </button>
         </div>
 
-        {scanMode === 'camera' && isScanning && (
+        {scanMode === 'camera' && isScanning && !ticket && (
           <div className="camera-controls">
             <button
               onClick={toggleTorch}
@@ -355,7 +402,9 @@ export const TicketVerificationScanner: React.FC = () => {
         )}
       </div>
 
-      <div id="ticket-qr-reader" className="qr-reader"></div>
+      {!ticket && (
+        <div id="ticket-qr-reader" className="qr-reader"></div>
+      )}
 
       {error && (
         <div className="error-message">
