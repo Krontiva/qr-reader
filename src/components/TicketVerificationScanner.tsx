@@ -3,13 +3,27 @@ import { Html5Qrcode } from 'html5-qrcode';
 import type { TicketOrder } from '../types/ticket.types';
 import { delikaApi } from '../services/delikaApi';
 
-// Helper function to clear all cache
+// Helper function to clear cache (but preserve authentication data)
 const clearAllCache = () => {
   try {
-    // Clear localStorage
+    // Preserve authentication data
+    const authToken = localStorage.getItem('authToken');
+    const delikaOnboardingId = localStorage.getItem('delikaOnboardingId');
+    const userRole = localStorage.getItem('userRole');
+    const userData = localStorage.getItem('userData');
+
+    // Clear all localStorage
     localStorage.clear();
+
+    // Restore authentication data
+    if (authToken) localStorage.setItem('authToken', authToken);
+    if (delikaOnboardingId) localStorage.setItem('delikaOnboardingId', delikaOnboardingId);
+    if (userRole) localStorage.setItem('userRole', userRole);
+    if (userData) localStorage.setItem('userData', userData);
+
     // Clear sessionStorage
     sessionStorage.clear();
+    
     // Clear IndexedDB if needed (optional)
     if ('indexedDB' in window) {
       indexedDB.databases().then(databases => {
@@ -20,7 +34,6 @@ const clearAllCache = () => {
         });
       });
     }
-    console.log('Cache cleared successfully');
   } catch (err) {
     console.error('Error clearing cache:', err);
   }
@@ -38,10 +51,8 @@ export const TicketVerificationScanner: React.FC = () => {
   const [scanMode, setScanMode] = useState<'camera' | 'file'>('camera');
   const scannerId = 'ticket-qr-reader';
 
-  // Clear cache on component mount (refresh)
-  useEffect(() => {
-    clearAllCache();
-  }, []);
+  // Don't clear cache on mount - it was clearing auth token and logging users out
+  // Cache is only cleared when explicitly needed (scanning, verifying, clearing)
 
   // Auto-start camera on initial load if camera mode is selected
   useEffect(() => {
@@ -93,7 +104,6 @@ export const TicketVerificationScanner: React.FC = () => {
         }
       } catch (cameraEnumError) {
         // Camera enumeration failed (common on mobile) - use facingMode instead
-        console.log('Camera enumeration failed, using facingMode:', cameraEnumError);
         useFacingMode = true;
       }
 
@@ -152,10 +162,12 @@ export const TicketVerificationScanner: React.FC = () => {
       
       // Provide more specific error messages
       let errorMessage = 'Failed to start camera. ';
-      if (err.name === 'NotAllowedError' || err.message?.includes('permission')) {
-        errorMessage += 'Please allow camera permissions and try again.';
+      if (err.name === 'NotAllowedError' || err.message?.includes('permission') || err.message?.includes('Permission denied')) {
+        errorMessage = 'Camera permission denied. Please allow camera access in your browser settings and refresh the page.';
       } else if (err.name === 'NotFoundError' || err.message?.includes('camera')) {
         errorMessage += 'No camera found on your device.';
+      } else if (err.name === 'NotReadableError' || err.message?.includes('could not start')) {
+        errorMessage = 'Camera is already in use by another application. Please close other apps using the camera and try again.';
       } else if (err.message) {
         errorMessage += err.message;
       } else {
@@ -177,7 +189,6 @@ export const TicketVerificationScanner: React.FC = () => {
         });
         setTorchOn(false);
       } catch (err) {
-        console.log('Error turning off torch:', err);
       }
     }
     videoTrackRef.current = null;
@@ -188,7 +199,6 @@ export const TicketVerificationScanner: React.FC = () => {
         await qrCodeRef.current.clear();
       } catch (error) {
         // Ignore errors when stopping (might already be stopped)
-        console.log('Scanner already stopped or error stopping:', error);
       }
       qrCodeRef.current = null;
     }
@@ -218,7 +228,6 @@ export const TicketVerificationScanner: React.FC = () => {
       });
       setTorchOn(newTorchState);
     } catch (err) {
-      console.log('Torch not supported or error toggling:', err);
       // Torch might not be supported on this device
     }
   };

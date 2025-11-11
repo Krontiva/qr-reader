@@ -71,7 +71,6 @@ export const QRScanner: React.FC<QRScannerProps> = ({
         // Handle scan errors (usually when no QR code is detected)
         // We don't want to show these as actual errors
         if (errorMessage !== scanResult) {
-          // console.log(errorMessage);
         }
       }
     );
@@ -147,7 +146,6 @@ export const QRScanner: React.FC<QRScannerProps> = ({
           source: 'scanner',
         },
       });
-      console.log('QR code saved to Xano successfully');
     } catch (err) {
       console.error('Failed to save QR code to Xano:', err);
       setError('Failed to save to database');

@@ -10,9 +10,10 @@ const XANO_BASE_URL = import.meta.env.VITE_XANO_BASE_URL;
  * @returns The auth token or empty string if not defined
  */
 const getAuthToken = (): string => {
-  const token = import.meta.env.VITE_XANO_API_TOKEN;
+  // Try both possible variable names for backward compatibility
+  const token = import.meta.env.VITE_XANO_AUTH_TOKEN || import.meta.env.VITE_XANO_API_TOKEN;
   if (!token) {
-    console.warn('VITE_XANO_API_TOKEN is not defined in environment variables');
+    console.warn('VITE_XANO_AUTH_TOKEN is not defined in environment variables');
     return ''; // Return empty string instead of throwing error
   }
   return token;

@@ -17,6 +17,67 @@
   background: linear-gradient(180deg, rgba(249, 115, 22, 0.06) 0%, rgba(249, 115, 22, 0) 60%);
 }
 
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1200px;
+  padding: 0 1rem;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.user-email {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(249, 115, 22, 0.1);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.user-email-label {
+  color: #666;
+  font-weight: 500;
+}
+
+.user-email-value {
+  color: #f97316;
+  font-weight: 600;
+}
+
+.logout-btn {
+  padding: 8px 16px;
+  background: #f97316;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.logout-btn:hover {
+  background: #ea580c;
+}
+
+@media (max-width: 768px) {
+  .user-email {
+    display: none; /* Hide email on mobile to save space */
+  }
+  
+  .header-right {
+    gap: 8px;
+  }
+}
+
 .app-header h1 {
   font-size: 1.75rem;
   margin: 0;

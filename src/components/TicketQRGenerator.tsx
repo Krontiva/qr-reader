@@ -66,7 +66,6 @@ export const TicketQRGenerator: React.FC = () => {
       // Update ticket in API
       try {
         await delikaApi.addQRCodeToTicket(ticket.id, qrCodeUrl, vendorCode);
-        console.log(`QR code saved for ticket ${ticket.orderNumber}`);
       } catch (apiError) {
         console.warn('Could not save QR code to API:', apiError);
         // Continue even if API update fails - QR code is still generated locally

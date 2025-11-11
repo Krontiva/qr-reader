@@ -81,7 +81,6 @@ export const QRGenerator: React.FC<QRGeneratorProps> = ({
         },
       });
       setSuccess('QR Code saved to Xano successfully!');
-      console.log('QR code saved to Xano');
     } catch (err) {
       console.error('Failed to save QR code to Xano:', err);
       setError('Failed to save to database');

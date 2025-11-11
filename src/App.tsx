@@ -5,6 +5,8 @@ import { QRGenerator } from './components/QRGenerator';
 import { VendorCodeGenerator } from './components/VendorCodeGenerator';
 import { VendorCodeLookup } from './components/VendorCodeLookup';
 import { TicketVerificationScanner } from './components/TicketVerificationScanner';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { authApi, type UserData } from './services/authApi';
 import type { ScanResult } from './types/qr.types';
 import { VerifyIcon, VendorIcon, LookupIcon, GenerateIcon, ScannerIcon } from './assets/icons';
 
@@ -14,6 +16,40 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabType>('verify');
   const [autoSave] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [userEmail, setUserEmail] = useState<string>('');
+
+  // Get user email from localStorage
+  useEffect(() => {
+    const loadUserData = () => {
+      try {
+        const userDataStr = localStorage.getItem('userData');
+        if (userDataStr) {
+          const userData: UserData = JSON.parse(userDataStr);
+          if (userData.email) {
+            setUserEmail(userData.email);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading user data:', error);
+      }
+    };
+
+    // Load on mount
+    loadUserData();
+
+    // Listen for auth state changes
+    const handleAuthStateChange = () => {
+      loadUserData();
+    };
+
+    window.addEventListener('authStateChange', handleAuthStateChange);
+    window.addEventListener('storage', handleAuthStateChange);
+
+    return () => {
+      window.removeEventListener('authStateChange', handleAuthStateChange);
+      window.removeEventListener('storage', handleAuthStateChange);
+    };
+  }, []);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -46,14 +82,35 @@ function App() {
   };
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <img
-          src="/image/delikahorizontal.png"
-          alt="Delika logo"
-          className="brand-logo"
-        />
-      </header>
+    <ProtectedRoute>
+      <div className="app">
+        <header className="app-header">
+          <div className="header-content">
+            <img
+              src="/image/delikahorizontal.png"
+              alt="Delika logo"
+              className="brand-logo"
+            />
+            <div className="header-right">
+              {userEmail && (
+                <div className="user-email">
+                  <span className="user-email-label">Logged in as:</span>
+                  <span className="user-email-value">{userEmail}</span>
+                </div>
+              )}
+              <button
+                onClick={() => {
+                  authApi.logout();
+                  window.location.reload();
+                }}
+                className="logout-btn"
+                title="Logout"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </header>
 
       {/** Auto-save toggle removed per request (hidden on desktop too) **/}
 
@@ -151,8 +208,9 @@ function App() {
         </div>
       </div>
 
-      {/* Footer removed per request: no Xano credentials note on desktop */}
-    </div>
+        {/* Footer removed per request: no Xano credentials note on desktop */}
+      </div>
+    </ProtectedRoute>
   );
 }
 

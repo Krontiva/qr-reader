@@ -13,24 +13,63 @@ const ADD_TICKET_CODE_ENDPOINT = import.meta.env.VITE_DELIKA_ADD_TICKET_CODE_END
  * @returns The auth token or empty string if not defined
  */
 const getAuthToken = (): string => {
-  const token = import.meta.env.VITE_XANO_API_TOKEN;
+  // Try both possible variable names
+  const token = import.meta.env.VITE_XANO_AUTH_TOKEN || import.meta.env.VITE_XANO_API_TOKEN;
   if (!token) {
-    console.warn('VITE_XANO_API_TOKEN is not defined in environment variables');
+    console.warn('VITE_XANO_AUTH_TOKEN or VITE_XANO_API_TOKEN is not defined in environment variables');
     return ''; // Return empty string instead of throwing error
   }
   return token;
+};
+
+/**
+ * Get user's auth token from localStorage
+ * @returns The user's auth token or null
+ */
+const getUserAuthToken = (): string | null => {
+  return localStorage.getItem('authToken');
 };
 
 class DelikaApiService {
   private api: AxiosInstance;
 
   constructor() {
+    // Use proxy in development to avoid CORS issues
+    const isDevelopment = import.meta.env.DEV;
+    
+    const baseURL = isDevelopment 
+      ? '/api/api:uEBBwbSs'  // Use proxy in dev
+      : DELIKA_BASE_URL;      // Use direct URL in production
+
     this.api = axios.create({
-      baseURL: DELIKA_BASE_URL,
+      baseURL: baseURL,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': getAuthToken(), // Static service token for all API operations
       },
+    });
+
+    // Add request interceptor to use user's auth token if available, otherwise use service token
+    this.api.interceptors.request.use((config) => {
+      const userToken = getUserAuthToken();
+      
+      // Clear any existing auth headers first
+      delete config.headers['Authorization'];
+      delete config.headers['X-Xano-Authorization'];
+      delete config.headers['X-Xano-Authorization-Only'];
+      
+      if (userToken) {
+        // Use user's auth token for authenticated requests
+        config.headers['X-Xano-Authorization'] = userToken;
+        config.headers['X-Xano-Authorization-Only'] = 'true';
+      } else {
+        // Fall back to service token
+        const serviceToken = getAuthToken();
+        if (serviceToken) {
+          config.headers['Authorization'] = serviceToken;
+        }
+      }
+      
+      return config;
     });
   }
 
@@ -42,8 +81,31 @@ class DelikaApiService {
     try {
       const response = await this.api.get(EVENTS_ENDPOINT);
       return response.data;
-    } catch (error) {
-      console.error('Error fetching events from Delika:', error);
+    } catch (error: any) {
+      // Handle 401 Unauthorized - might need user token
+      if (error.response?.status === 401) {
+        const userToken = getUserAuthToken();
+        if (!userToken) {
+          // Silently fail - user needs to login first
+          console.warn('Authentication required for events. User needs to login.');
+          throw new Error('Authentication required. Please login to access events.');
+        } else {
+          // Token exists but still getting 401 - might be invalid or expired
+          console.warn('Authentication failed with existing token. Session may have expired.');
+          throw new Error('Authentication failed. Your session may have expired. Please login again.');
+        }
+      }
+      
+      // Only log non-401 errors
+      if (error.response?.status !== 401) {
+        console.error('Error fetching events from Delika:', {
+          message: error.message,
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+        });
+      }
+      
       throw error;
     }
   }
@@ -71,8 +133,29 @@ class DelikaApiService {
     try {
       const response = await this.api.get(TICKETS_ENDPOINT);
       return response.data;
-    } catch (error) {
-      console.error('Error fetching tickets from Delika:', error);
+    } catch (error: any) {
+      // Handle 401 Unauthorized
+      if (error.response?.status === 401) {
+        const userToken = getUserAuthToken();
+        if (!userToken) {
+          console.warn('Authentication required for tickets. User needs to login.');
+          throw new Error('Authentication required. Please login to access tickets.');
+        } else {
+          console.warn('Authentication failed with existing token. Session may have expired.');
+          throw new Error('Authentication failed. Your session may have expired. Please login again.');
+        }
+      }
+      
+      // Only log non-401 errors
+      if (error.response?.status !== 401) {
+        console.error('Error fetching tickets from Delika:', {
+          message: error.message,
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+        });
+      }
+      
       throw error;
     }
   }
@@ -251,11 +334,24 @@ class DelikaApiService {
         formData.append('productName', productName);
       }
 
+      // Get auth token (user token preferred, fallback to service token)
+      const userToken = getUserAuthToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'multipart/form-data',
+      };
+
+      if (userToken) {
+        headers['X-Xano-Authorization'] = userToken;
+        headers['X-Xano-Authorization-Only'] = 'true';
+      } else {
+        const serviceToken = getAuthToken();
+        if (serviceToken) {
+          headers['Authorization'] = serviceToken;
+        }
+      }
+
       const response = await this.api.post(ADD_TICKET_CODE_ENDPOINT, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'Authorization': getAuthToken(), // Ensure auth token is included for FormData requests
-        },
+        headers,
       });
       return response.data;
     } catch (error) {
