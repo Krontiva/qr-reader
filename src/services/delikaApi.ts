@@ -48,25 +48,25 @@ class DelikaApiService {
       },
     });
 
-    // Add request interceptor to use user's auth token if available, otherwise use service token
+    // Add request interceptor to include service token plus optional user token
     this.api.interceptors.request.use((config) => {
       const userToken = getUserAuthToken();
+      const serviceToken = getAuthToken();
       
       // Clear any existing auth headers first
       delete config.headers['Authorization'];
       delete config.headers['X-Xano-Authorization'];
       delete config.headers['X-Xano-Authorization-Only'];
       
+      // Always include service token (required for Delika endpoints)
+      if (serviceToken) {
+        config.headers['Authorization'] = serviceToken;
+      }
+      
+      // Also include user token when available (for per-user auditing/permissions)
       if (userToken) {
-        // Use user's auth token for authenticated requests
         config.headers['X-Xano-Authorization'] = userToken;
         config.headers['X-Xano-Authorization-Only'] = 'true';
-      } else {
-        // Fall back to service token
-        const serviceToken = getAuthToken();
-        if (serviceToken) {
-          config.headers['Authorization'] = serviceToken;
-        }
       }
       
       return config;
