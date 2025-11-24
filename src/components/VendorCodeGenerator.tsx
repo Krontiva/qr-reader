@@ -19,6 +19,10 @@ export const VendorCodeGenerator: React.FC<VendorCodeGeneratorProps> = ({
   const [currentProductName, setCurrentProductName] = useState('');
   const [currentDescription, setCurrentDescription] = useState('');
   const [bulkInput, setBulkInput] = useState('');
+  const [autoGenerateCount, setAutoGenerateCount] = useState(10);
+  const [autoGenerateProduct, setAutoGenerateProduct] = useState('');
+  const [bulkExpectedCount, setBulkExpectedCount] = useState(10);
+  const [bulkProductName, setBulkProductName] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
@@ -108,7 +112,7 @@ export const VendorCodeGenerator: React.FC<VendorCodeGeneratorProps> = ({
       return;
     }
 
-    const lines = bulkInput.split('\n').filter(line => line.trim());
+    const lines = bulkInput.split('\n').map(line => line.trim()).filter(Boolean);
     const newCodes: VendorCode[] = [];
 
     for (const line of lines) {
@@ -118,18 +122,77 @@ export const VendorCodeGenerator: React.FC<VendorCodeGeneratorProps> = ({
         newCodes.push({
           vendor_code: vendorCode,
           vendor_name: selectedEvent.vendor_name,
+          product_name: bulkProductName || undefined,
         });
       }
     }
 
     if (newCodes.length > 0) {
+      if (bulkExpectedCount > 0 && newCodes.length !== bulkExpectedCount) {
+        console.warn(`Expected ${bulkExpectedCount} codes but detected ${newCodes.length}. Proceeding with detected count.`);
+      }
       setVendorCodes([...vendorCodes, ...newCodes]);
       setBulkInput('');
-      setSuccess(`Added ${newCodes.length} vendor codes`);
+      setSuccess(`Added ${newCodes.length} vendor codes from import`);
       setError('');
     } else {
       setError('No valid vendor codes found in bulk input');
     }
+  };
+
+  const getEventInitials = (eventName?: string) => {
+    if (!eventName) return 'EVT';
+    return eventName
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(word => word[0]?.toUpperCase())
+      .join('')
+      .slice(0, 4) || 'EVT';
+  };
+
+  const generateRandomCode = (initials: string) => {
+    const randomDigits = Math.floor(100000 + Math.random() * 900000).toString();
+    return `${initials}-${randomDigits}`;
+  };
+
+  const handleAutoGenerateCodes = () => {
+    if (!selectedEvent) {
+      setError('Please select a vendor/event first');
+      return;
+    }
+
+    if (autoGenerateCount <= 0) {
+      setError('Please enter a valid number of codes to generate');
+      return;
+    }
+
+    const initials = getEventInitials(selectedEvent.event_name);
+    const existingCodes = new Set(vendorCodes.map(code => code.vendor_code));
+    const newCodes: VendorCode[] = [];
+    let attempts = 0;
+    const maxAttempts = autoGenerateCount * 10;
+
+    while (newCodes.length < autoGenerateCount && attempts < maxAttempts) {
+      const code = generateRandomCode(initials);
+      attempts++;
+      if (!existingCodes.has(code)) {
+        existingCodes.add(code);
+        newCodes.push({
+          vendor_code: code,
+          vendor_name: selectedEvent.vendor_name,
+          product_name: autoGenerateProduct || undefined,
+        });
+      }
+    }
+
+    if (newCodes.length === 0) {
+      setError('Failed to generate new unique vendor codes. Please try again.');
+      return;
+    }
+
+    setVendorCodes([...vendorCodes, ...newCodes]);
+    setSuccess(`Auto-generated ${newCodes.length} vendor code${newCodes.length > 1 ? 's' : ''}`);
+    setError('');
   };
 
   const generateAllQRCodes = async () => {
@@ -255,6 +318,14 @@ export const VendorCodeGenerator: React.FC<VendorCodeGeneratorProps> = ({
     setSuccess('');
   };
 
+  const detectedBulkCount = bulkInput
+    ? bulkInput.split('\n').map(line => line.trim()).filter(Boolean).length
+    : 0;
+
+  const autoGeneratePreview = selectedEvent
+    ? `${getEventInitials(selectedEvent.event_name)}-123456`
+    : 'Select an event to preview format';
+
   return (
     <div className="vendor-code-generator-container">
       <h2>Vendor Code QR Generator</h2>
@@ -281,6 +352,8 @@ export const VendorCodeGenerator: React.FC<VendorCodeGeneratorProps> = ({
                   setCurrentVendorCode('');
                   setCurrentProductName('');
                   setCurrentDescription('');
+                  setAutoGenerateProduct('');
+                  setBulkProductName('');
                 }
               }}
               className="text-input"
@@ -299,6 +372,86 @@ export const VendorCodeGenerator: React.FC<VendorCodeGeneratorProps> = ({
             </p>
           )}
         </div>
+      </div>
+
+      {/* Auto-generate section */}
+      <div className="vendor-form">
+        <h3>Auto Generate Vendor Codes</h3>
+        <p className="help-text">
+          Create random 6-digit vendor codes automatically using the initials of the selected event.
+          Example format: <code>{autoGeneratePreview}</code>
+        </p>
+        <div className="form-grid">
+          <div className="form-group">
+            <label htmlFor="auto-count">How many codes?</label>
+            <input
+              id="auto-count"
+              type="number"
+              min={1}
+              max={500}
+              value={autoGenerateCount}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                if (Number.isNaN(value)) {
+                  setAutoGenerateCount(1);
+                } else {
+                  setAutoGenerateCount(Math.min(500, Math.max(1, value)));
+                }
+              }}
+              className="text-input"
+              disabled={!selectedEvent}
+            />
+            <p className="help-text">Generate between 1 and 500 codes in one click.</p>
+          </div>
+
+          <div className="form-group">
+            <label>Preview</label>
+            <input
+              type="text"
+              value={autoGeneratePreview}
+              readOnly
+              className="text-input"
+            />
+            <p className="help-text">Format: [Event Initials]-[Random 6 digits]</p>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="auto-product">Which product should these codes represent?</label>
+            {selectedEvent && selectedEvent.inventory && selectedEvent.inventory.length > 0 ? (
+              <select
+                id="auto-product"
+                value={autoGenerateProduct}
+                onChange={(e) => setAutoGenerateProduct(e.target.value)}
+                className="text-input"
+              >
+                <option value="">-- No specific product --</option>
+                {selectedEvent.inventory.map((item, index) => (
+                  <option key={index} value={item.itemName}>
+                    {item.itemName} {item.description ? `- ${item.description}` : ''} (GH₵{item.itemPrice})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                id="auto-product"
+                type="text"
+                value="No inventory items available"
+                readOnly
+                className="text-input"
+              />
+            )}
+            <p className="help-text">
+              Every auto-generated code will automatically reference this product.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={handleAutoGenerateCodes}
+          className="btn-secondary"
+          disabled={!selectedEvent}
+        >
+          Auto Generate Vendor Codes
+        </button>
       </div>
 
       {/* Single Entry Form */}
@@ -377,6 +530,73 @@ export const VendorCodeGenerator: React.FC<VendorCodeGeneratorProps> = ({
           <br />
           <code>VENDOR_CODE (one per line)</code>
         </p>
+        <div className="form-grid">
+          <div className="form-group">
+            <label htmlFor="bulk-expected">How many codes are you importing?</label>
+            <input
+              id="bulk-expected"
+              type="number"
+              min={1}
+              max={1000}
+              value={bulkExpectedCount}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                if (Number.isNaN(value)) {
+                  setBulkExpectedCount(1);
+                } else {
+                  setBulkExpectedCount(Math.min(1000, Math.max(1, value)));
+                }
+              }}
+              className="text-input"
+              disabled={!selectedEvent}
+            />
+            <p className="help-text">
+              Helps double-check that you imported the expected number of codes.
+            </p>
+          </div>
+          <div className="form-group">
+            <label>Detected Codes</label>
+            <input
+              type="text"
+              value={detectedBulkCount}
+              readOnly
+              className="text-input"
+            />
+            <p className="help-text">
+              We count codes automatically as you paste them.
+            </p>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="bulk-product">Which product should imported codes use?</label>
+            {selectedEvent && selectedEvent.inventory && selectedEvent.inventory.length > 0 ? (
+              <select
+                id="bulk-product"
+                value={bulkProductName}
+                onChange={(e) => setBulkProductName(e.target.value)}
+                className="text-input"
+              >
+                <option value="">-- No specific product --</option>
+                {selectedEvent.inventory.map((item, index) => (
+                  <option key={index} value={item.itemName}>
+                    {item.itemName} {item.description ? `- ${item.description}` : ''} (GH₵{item.itemPrice})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                id="bulk-product"
+                type="text"
+                value="No inventory items available"
+                readOnly
+                className="text-input"
+              />
+            )}
+            <p className="help-text">
+              Applied to every code imported in this batch.
+            </p>
+          </div>
+        </div>
         <textarea
           value={bulkInput}
           onChange={(e) => setBulkInput(e.target.value)}
