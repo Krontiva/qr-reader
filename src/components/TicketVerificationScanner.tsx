@@ -442,6 +442,29 @@ export const TicketVerificationScanner: React.FC = () => {
         <div className="ticket-details-card">
           <h3>Ticket Details</h3>
 
+          {/* Ticket Items - Moved to top for mobile visibility */}
+          <div className="ticket-items ticket-items-top">
+            <h4>Ticket Items</h4>
+            <div className="ticket-item-detail">
+              <div className="ticket-item-row">
+                <strong>Item Name:</strong>
+                <span>{ticket.itemName || 'N/A'}</span>
+              </div>
+              <div className="ticket-item-row">
+                <strong>Quantity:</strong>
+                <span>{ticket.itemQuantity || 'N/A'}</span>
+              </div>
+              <div className="ticket-item-row">
+                <strong>Price:</strong>
+                <span>GH₵{ticket.itemPrice || 'N/A'}</span>
+              </div>
+              <div className="ticket-item-row">
+                <strong>Order Number:</strong>
+                <span>{ticket.orderNumber || 'N/A'}</span>
+              </div>
+            </div>
+          </div>
+
           <div className="ticket-info-grid">
             <div className="info-item">
               <strong>Order Number:</strong>
@@ -476,15 +499,6 @@ export const TicketVerificationScanner: React.FC = () => {
             <p><strong>Date:</strong> {new Date(ticket.events.event_date).toLocaleDateString()}</p>
             <p><strong>Location:</strong> {ticket.events.event_location || 'TBD'}</p>
             {ticket.events.vendor_name && <p><strong>Vendor:</strong> {ticket.events.vendor_name}</p>}
-          </div>
-
-          <div className="ticket-items">
-            <h4>Ticket Items</h4>
-            <div className="ticket-item-detail">
-              <span><strong>Item Name:</strong> {ticket.itemName || 'N/A'}</span>
-              <span><strong>Quantity:</strong> {ticket.itemQuantity || 'N/A'}</span>
-              <span><strong>Price:</strong> GH₵{ticket.itemPrice || 'N/A'}</span>
-            </div>
           </div>
 
           <div className="verification-actions">
