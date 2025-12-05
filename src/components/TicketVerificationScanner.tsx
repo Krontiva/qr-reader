@@ -315,11 +315,22 @@ export const TicketVerificationScanner: React.FC = () => {
     setSuccess('');
 
     try {
-      await delikaApi.verifyTicket(ticket.id);
+      // Get the full response from verifyTicket which includes all fields
+      const verifiedTicket = await delikaApi.verifyTicket(ticket.id);
       setSuccess('✓ Ticket verified successfully!');
 
-      // Update local ticket state
-      setTicket({ ...ticket, verified: true });
+      // Update local ticket state with full response data including:
+      // itemName, itemPrice, itemQuantity, orderNumber, and verified status
+      setTicket({
+        ...ticket,
+        ...verifiedTicket,
+        verified: true,
+        // Ensure these fields are included from the response
+        orderNumber: verifiedTicket.orderNumber || ticket.orderNumber,
+        itemName: verifiedTicket.itemName || ticket.itemName,
+        itemPrice: verifiedTicket.itemPrice || ticket.itemPrice,
+        itemQuantity: verifiedTicket.itemQuantity || ticket.itemQuantity,
+      });
 
       // Clear after a delay
       setTimeout(() => {
@@ -469,13 +480,11 @@ export const TicketVerificationScanner: React.FC = () => {
 
           <div className="ticket-items">
             <h4>Ticket Items</h4>
-            {ticket.inventory.map((item, idx) => (
-              <div key={idx} className="ticket-item-detail">
-                <span>{item.itemName}</span>
-                <span>Qty: {item.itemQuantity}</span>
-                <span>Price: GH₵{item.itemPrice}</span>
-              </div>
-            ))}
+            <div className="ticket-item-detail">
+              <span><strong>Item Name:</strong> {ticket.itemName || 'N/A'}</span>
+              <span><strong>Quantity:</strong> {ticket.itemQuantity || 'N/A'}</span>
+              <span><strong>Price:</strong> GH₵{ticket.itemPrice || 'N/A'}</span>
+            </div>
           </div>
 
           <div className="verification-actions">

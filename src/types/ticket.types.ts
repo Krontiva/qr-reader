@@ -100,6 +100,10 @@ export interface TicketOrder {
   qrCode: string | null;
   events: DelikaEvent;
   customer: Customer;
+  // Root-level item fields (from API response)
+  itemName?: string;
+  itemPrice?: string;
+  itemQuantity?: string;
 }
 
 export interface TicketVerificationResult {
