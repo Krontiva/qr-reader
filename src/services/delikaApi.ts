@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance } from 'axios';
 import type { DelikaEvent, TicketOrder, UpdateTicketPayload } from '../types/ticket.types';
+import type { DelikaQR } from '../types/qr.types';
 
 // Configuration for Delika API
 const DELIKA_BASE_URL = import.meta.env.VITE_DELIKA_API_BASE_URL;
@@ -356,6 +357,135 @@ class DelikaApiService {
       return response.data;
     } catch (error) {
       console.error('Error adding ticket code:', error);
+      throw error;
+    }
+  }
+
+  async createDelikaQR(url: string, code: string, name: string, qrcodeFile: File | Blob): Promise<unknown> {
+    try {
+      const formData = new FormData();
+      formData.append('url', url);
+      formData.append('code', code);
+      formData.append('name', name);
+      formData.append('qrcode', qrcodeFile, 'qr-code.png');
+
+      const userToken = getUserAuthToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'multipart/form-data',
+      };
+
+      if (userToken) {
+        headers['X-Xano-Authorization'] = userToken;
+        headers['X-Xano-Authorization-Only'] = 'true';
+      } else {
+        const serviceToken = getAuthToken();
+        if (serviceToken) {
+          headers['Authorization'] = serviceToken;
+        }
+      }
+
+      const response = await this.api.post('/delika_qr', formData, { headers });
+      return response.data;
+    } catch (error) {
+      console.error('Error creating Delika QR:', error);
+      throw error;
+    }
+  }
+
+  async updateDelikaQR(code: string, url: string): Promise<unknown> {
+    try {
+      const userToken = getUserAuthToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (userToken) {
+        headers['X-Xano-Authorization'] = userToken;
+        headers['X-Xano-Authorization-Only'] = 'true';
+      } else {
+        const serviceToken = getAuthToken();
+        if (serviceToken) {
+          headers['Authorization'] = serviceToken;
+        }
+      }
+
+      const response = await this.api.patch(`/delika_qr/${encodeURIComponent(code)}`, { url }, { headers });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating Delika QR:', error);
+      throw error;
+    }
+  }
+
+  async getDelikaQRs(): Promise<DelikaQR[]> {
+    try {
+      const userToken = getUserAuthToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (userToken) {
+        headers['X-Xano-Authorization'] = userToken;
+        headers['X-Xano-Authorization-Only'] = 'true';
+      } else {
+        const serviceToken = getAuthToken();
+        if (serviceToken) {
+          headers['Authorization'] = serviceToken;
+        }
+      }
+
+      const response = await this.api.get('/delika_qr', { headers });
+      const raw = response.data as unknown;
+      if (!Array.isArray(raw)) return [];
+
+      return raw.map((item) => {
+        const rec = item as Record<string, unknown>;
+        let qrcodeUrl: string | undefined;
+        const file = rec['qrcode'];
+        if (file && typeof file === 'object') {
+          const f = file as Record<string, unknown>;
+          const maybeUrl = f['url'];
+          if (typeof maybeUrl === 'string') {
+            qrcodeUrl = maybeUrl;
+          }
+        }
+
+        return {
+          id: typeof rec['id'] === 'number' ? (rec['id'] as number) : 0,
+          code: typeof rec['code'] === 'string' ? (rec['code'] as string) : '',
+          url: typeof rec['url'] === 'string' ? (rec['url'] as string) : '',
+          name: typeof rec['name'] === 'string' ? (rec['name'] as string) : undefined,
+          created_at: typeof rec['created_at'] === 'string' || typeof rec['created_at'] === 'number' ? (rec['created_at'] as string | number) : undefined,
+          qrcodeUrl,
+        } as DelikaQR;
+      });
+    } catch (error) {
+      console.error('Error fetching Delika QRs:', error);
+      throw error;
+    }
+  }
+
+  async updateDelikaQRDetails(code: string, payload: { url?: string; name?: string }): Promise<DelikaQR> {
+    try {
+      const userToken = getUserAuthToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (userToken) {
+        headers['X-Xano-Authorization'] = userToken;
+        headers['X-Xano-Authorization-Only'] = 'true';
+      } else {
+        const serviceToken = getAuthToken();
+        if (serviceToken) {
+          headers['Authorization'] = serviceToken;
+        }
+      }
+
+      const response = await this.api.patch(`/delika_qr/${encodeURIComponent(code)}`, payload, { headers });
+      return response.data as DelikaQR;
+    } catch (error) {
+      console.error('Error updating Delika QR details:', error);
       throw error;
     }
   }

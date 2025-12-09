@@ -40,3 +40,12 @@ export interface BatchGenerateResult {
     error?: string;
   }[];
 }
+
+export interface DelikaQR {
+  id: number;
+  code: string;
+  url: string;
+  name?: string;
+  created_at?: string | number;
+  qrcodeUrl?: string;
+}

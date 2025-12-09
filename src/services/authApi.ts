@@ -42,28 +42,19 @@ class AuthApiService {
   private api: AxiosInstance;
 
   constructor() {
-    if (!API_BASE_URL) {
-      throw new Error('VITE_API_BASE_URL or VITE_DELIKA_API_BASE_URL is not defined in environment variables');
-    }
-
-    if (!XANO_AUTH_TOKEN) {
-      throw new Error('VITE_XANO_AUTH_TOKEN is not defined in environment variables');
-    }
-
-    // Use proxy in development to avoid CORS issues, direct URL in production
     const isDevelopment = import.meta.env.DEV;
-    const baseURL = isDevelopment 
-      ? '/api/api:uEBBwbSs'  // Use proxy in dev (will be rewritten to /api:uEBBwbSs)
-      : API_BASE_URL;         // Use direct URL in production
+    const baseURL = isDevelopment ? '/api/api:uEBBwbSs' : (API_BASE_URL || '');
 
-    
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (XANO_AUTH_TOKEN) {
+      headers['Authorization'] = XANO_AUTH_TOKEN;
+    }
 
     this.api = axios.create({
-      baseURL: baseURL,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': XANO_AUTH_TOKEN,
-      },
+      baseURL,
+      headers,
     });
   }
 
@@ -234,4 +225,3 @@ class AuthApiService {
 }
 
 export const authApi = new AuthApiService();
-

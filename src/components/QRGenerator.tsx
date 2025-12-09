@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import QRCode from 'qrcode';
 import type { GenerateOptions } from '../types/qr.types';
 import { xanoApi } from '../services/xanoApi';
+import { delikaApi } from '../services/delikaApi';
 
 interface QRGeneratorProps {
   onGenerate?: (qrImageUrl: string, text: string) => void;
@@ -14,11 +15,15 @@ export const QRGenerator: React.FC<QRGeneratorProps> = ({
 }) => {
   const [inputText, setInputText] = useState('');
   const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [encodedText, setEncodedText] = useState('');
+  const [generatedCode, setGeneratedCode] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const publicVerifyBase = (import.meta.env.VITE_QR_PUBLIC_VERIFY_BASE_URL as string | undefined) || '';
+  const redirectBase = (import.meta.env.VITE_QR_REDIRECT_BASE_URL as string | undefined) || '';
 
   // QR Code generation options
   const [options, setOptions] = useState<GenerateOptions>({
@@ -41,13 +46,18 @@ export const QRGenerator: React.FC<QRGeneratorProps> = ({
     setSuccess('');
 
     try {
-      // Generate QR code as data URL
-      const url = await QRCode.toDataURL(inputText, options);
+      const code = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+      const qrTextToEncode = publicVerifyBase
+        ? `${publicVerifyBase}?qr=${code}`
+        : (redirectBase ? `${redirectBase}/${code}` : inputText);
+      const url = await QRCode.toDataURL(qrTextToEncode, options);
       setQrCodeUrl(url);
+      setEncodedText(qrTextToEncode);
+      setGeneratedCode(code);
 
       // Also draw on canvas for better quality
       if (canvasRef.current) {
-        await QRCode.toCanvas(canvasRef.current, inputText, options);
+        await QRCode.toCanvas(canvasRef.current, qrTextToEncode, options);
       }
 
       if (onGenerate) {
@@ -71,18 +81,21 @@ export const QRGenerator: React.FC<QRGeneratorProps> = ({
   const saveToXano = async (imageUrl: string, text: string) => {
     setIsSaving(true);
     try {
-      await xanoApi.saveQRCode({
-        qr_text: text,
-        qr_image: imageUrl,
-        metadata: {
-          generated_at: new Date().toISOString(),
-          source: 'generator',
-          options: options,
-        },
-      });
-      setSuccess('QR Code saved to Xano successfully!');
+      const code = generatedCode || Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+      const parts = imageUrl.split(',');
+      const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
+      const bstr = atob(parts[1] || '');
+      const len = bstr.length;
+      const u8arr = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        u8arr[i] = bstr.charCodeAt(i);
+      }
+      const blob = new Blob([u8arr], { type: mime });
+
+      await delikaApi.createDelikaQR(text, code, text, blob);
+      setSuccess('QR Code saved successfully');
     } catch (err) {
-      console.error('Failed to save QR code to Xano:', err);
+      console.error('Failed to save QR code:', err);
       setError('Failed to save to database');
     } finally {
       setIsSaving(false);
@@ -109,6 +122,8 @@ export const QRGenerator: React.FC<QRGeneratorProps> = ({
   const clearQRCode = () => {
     setQrCodeUrl('');
     setInputText('');
+    setEncodedText('');
+    setGeneratedCode('');
     setError('');
     setSuccess('');
     if (canvasRef.current) {
@@ -256,8 +271,13 @@ export const QRGenerator: React.FC<QRGeneratorProps> = ({
           </div>
           <div className="qr-info">
             <p>
-              <strong>Encoded Text:</strong> {inputText}
+              <strong>Encoded Text:</strong> {encodedText || inputText}
             </p>
+            {(publicVerifyBase || redirectBase) && (
+              <p>
+                <strong>Destination URL:</strong> {inputText}
+              </p>
+            )}
           </div>
         </div>
       )}

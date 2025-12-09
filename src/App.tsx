@@ -9,8 +9,9 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { authApi, type UserData } from './services/authApi';
 import type { ScanResult } from './types/qr.types';
 import { VerifyIcon, VendorIcon, LookupIcon, GenerateIcon, ScannerIcon } from './assets/icons';
+import { DelikaQrManager } from './components/DelikaQrManager';
 
-type TabType = 'tickets' | 'verify' | 'vendor' | 'lookup' | 'scanner' | 'generator';
+type TabType = 'tickets' | 'verify' | 'vendor' | 'lookup' | 'scanner' | 'generator' | 'manage';
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabType>('verify');
@@ -156,6 +157,13 @@ function App() {
               Lookup
             </button>
             <button
+              className={`tab ${activeTab === 'manage' ? 'active' : ''}`}
+              onClick={() => setActiveTab('manage')}
+            >
+              <LookupIcon active={activeTab === 'manage'} />
+              Manage QRs
+            </button>
+            <button
               className={`tab ${activeTab === 'generator' ? 'active' : ''}`}
               onClick={() => setActiveTab('generator')}
             >
@@ -189,6 +197,9 @@ function App() {
               )}
               {activeTab === 'lookup' && (
                 <VendorCodeLookup />
+              )}
+              {activeTab === 'manage' && (
+                <DelikaQrManager />
               )}
               {activeTab === 'generator' && (
                 <QRGenerator
