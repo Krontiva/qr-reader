@@ -367,7 +367,7 @@ class DelikaApiService {
       formData.append('url', url);
       formData.append('code', code);
       formData.append('name', name);
-      formData.append('qrcode', qrcodeFile, 'qr-code.png');
+      formData.append('qr_code', qrcodeFile, 'qr-code.png');
 
       const userToken = getUserAuthToken();
       const headers: Record<string, string> = {
@@ -441,9 +441,14 @@ class DelikaApiService {
       return raw.map((item) => {
         const rec = item as Record<string, unknown>;
         let qrcodeUrl: string | undefined;
-        const file = rec['qrcode'];
-        if (file && typeof file === 'object') {
-          const f = file as Record<string, unknown>;
+        let fileObj: unknown = rec['qr_code'];
+        const qrcodeObj = rec['qrcode'];
+        if (!fileObj && qrcodeObj && typeof qrcodeObj === 'object') {
+          const f = qrcodeObj as Record<string, unknown>;
+          fileObj = f['qr_code'] || qrcodeObj;
+        }
+        if (fileObj && typeof fileObj === 'object') {
+          const f = fileObj as Record<string, unknown>;
           const maybeUrl = f['url'];
           if (typeof maybeUrl === 'string') {
             qrcodeUrl = maybeUrl;
