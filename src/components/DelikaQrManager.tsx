@@ -117,9 +117,9 @@ export const DelikaQrManager: React.FC = () => {
               {filtered.map((item) => {
                 const isEditing = !!drafts[item.code];
                 const draft = drafts[item.code] || { url: item.url, name: item.name || '' };
-                const encoded = publicVerifyBase
+                const encoded = item.encoded_url || (publicVerifyBase
                   ? `${publicVerifyBase}?qr=${item.code}`
-                  : (redirectBase ? `${redirectBase}/${item.code}` : item.url);
+                  : (redirectBase ? `${redirectBase}/${item.code}` : item.url));
                 return (
                   <tr key={item.id}>
                     <td>{item.code}</td>

@@ -361,13 +361,16 @@ class DelikaApiService {
     }
   }
 
-  async createDelikaQR(url: string, code: string, name: string, qrcodeFile: File | Blob): Promise<unknown> {
+  async createDelikaQR(url: string, code: string, name: string, qrcodeFile: File | Blob, encodedUrl?: string): Promise<unknown> {
     try {
       const formData = new FormData();
       formData.append('url', url);
       formData.append('code', code);
       formData.append('name', name);
       formData.append('qrcode', qrcodeFile, 'qr-code.png');
+      if (encodedUrl) {
+        formData.append('encoded_url', encodedUrl);
+      }
 
       const userToken = getUserAuthToken();
       const headers: Record<string, string> = {
@@ -441,6 +444,12 @@ class DelikaApiService {
       return raw.map((item) => {
         const rec = item as Record<string, unknown>;
         let qrcodeUrl: string | undefined;
+        // Prefer top-level qr_code.url, else qrcode.qr_code.url, else qrcode.url
+        const topQrCode = rec['qr_code'] as Record<string, unknown> | undefined;
+        if (topQrCode && typeof topQrCode['url'] === 'string') {
+          qrcodeUrl = topQrCode['url'] as string;
+        }
+
         const file = rec['qrcode'] as unknown;
         if (file && typeof file === 'object' && !Array.isArray(file)) {
           const f = file as Record<string, unknown>;
@@ -475,6 +484,7 @@ class DelikaApiService {
           name: typeof rec['name'] === 'string' ? (rec['name'] as string) : undefined,
           created_at: typeof rec['created_at'] === 'string' || typeof rec['created_at'] === 'number' ? (rec['created_at'] as string | number) : undefined,
           qrcodeUrl,
+          encoded_url: typeof rec['encoded_url'] === 'string' ? (rec['encoded_url'] as string) : undefined,
         } as DelikaQR;
       });
     } catch (error) {

@@ -48,4 +48,5 @@ export interface DelikaQR {
   name?: string;
   created_at?: string | number;
   qrcodeUrl?: string;
+  encoded_url?: string;
 }

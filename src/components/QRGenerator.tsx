@@ -91,7 +91,11 @@ export const QRGenerator: React.FC<QRGeneratorProps> = ({
       }
       const blob = new Blob([u8arr], { type: mime });
 
-      await delikaApi.createDelikaQR(text, code, text, blob);
+      const encoded = publicVerifyBase
+        ? `${publicVerifyBase}?qr=${code}`
+        : (redirectBase ? `${redirectBase}/${code}` : text);
+
+      await delikaApi.createDelikaQR(text, code, text, blob, encoded);
       setSuccess('QR Code saved successfully');
     } catch (err) {
       console.error('Failed to save QR code:', err);
