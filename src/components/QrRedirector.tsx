@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 export const QrRedirector: React.FC = () => {
   const [code, setCode] = useState<string | null>(null);
   const redirectBase = (import.meta.env.VITE_QR_REDIRECT_BASE_URL as string | undefined) || '';
 
+  const targetUrl = useMemo(() => {
+    if (!code || !redirectBase) return '';
+    return `${redirectBase}/${encodeURIComponent(code)}`;
+  }, [code, redirectBase]);
 
   useEffect(() => {
     const url = new URL(window.location.href);

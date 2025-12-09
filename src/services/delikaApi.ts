@@ -367,7 +367,7 @@ class DelikaApiService {
       formData.append('url', url);
       formData.append('code', code);
       formData.append('name', name);
-      formData.append('qr_code', qrcodeFile, 'qr-code.png');
+      formData.append('qrcode', qrcodeFile, 'qr-code.png');
 
       const userToken = getUserAuthToken();
       const headers: Record<string, string> = {
@@ -441,17 +441,30 @@ class DelikaApiService {
       return raw.map((item) => {
         const rec = item as Record<string, unknown>;
         let qrcodeUrl: string | undefined;
-        let fileObj: unknown = rec['qr_code'];
-        const qrcodeObj = rec['qrcode'];
-        if (!fileObj && qrcodeObj && typeof qrcodeObj === 'object') {
-          const f = qrcodeObj as Record<string, unknown>;
-          fileObj = f['qr_code'] || qrcodeObj;
-        }
-        if (fileObj && typeof fileObj === 'object') {
-          const f = fileObj as Record<string, unknown>;
-          const maybeUrl = f['url'];
-          if (typeof maybeUrl === 'string') {
-            qrcodeUrl = maybeUrl;
+        const file = rec['qrcode'] as unknown;
+        if (file && typeof file === 'object' && !Array.isArray(file)) {
+          const f = file as Record<string, unknown>;
+          const qrCode = f['qr_code'] as Record<string, unknown> | undefined;
+          const nestedUrl = qrCode && typeof qrCode['url'] === 'string' ? (qrCode['url'] as string) : undefined;
+          if (nestedUrl) {
+            qrcodeUrl = nestedUrl;
+          } else {
+            const maybeUrl = f['url'];
+            if (typeof maybeUrl === 'string') {
+              qrcodeUrl = maybeUrl as string;
+            }
+          }
+        } else if (Array.isArray(file)) {
+          for (const it of file as unknown[]) {
+            if (it && typeof it === 'object') {
+              const o = it as Record<string, unknown>;
+              const qrCode = o['qr_code'] as Record<string, unknown> | undefined;
+              const nestedUrl = qrCode && typeof qrCode['url'] === 'string' ? (qrCode['url'] as string) : undefined;
+              if (nestedUrl) {
+                qrcodeUrl = nestedUrl;
+                break;
+              }
+            }
           }
         }
 

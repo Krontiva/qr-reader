@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import QRCode from 'qrcode';
 import type { GenerateOptions } from '../types/qr.types';
+import { xanoApi } from '../services/xanoApi';
 import { delikaApi } from '../services/delikaApi';
 
 interface QRGeneratorProps {
